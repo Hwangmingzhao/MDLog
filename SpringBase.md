@@ -6,7 +6,7 @@
 4. 调用实现的BeanFactoryAware接口的setBeanFactory接口
 5. ~~ ApplicationContextAwear  ~~ set~~
 6. 初始化预处理，执行这个方法postProcessBeforeInitialization，在Bean初始化完成之前进行
-7. 执行**init-meathod，执行完标志着初始化完成( @PostConstruct)**
+7. 执行**init-method，执行完标志着初始化完成( @PostConstruct)**
 8. 执行postProcessAfterInitialization，初始化完成后执行，然后这个Bean就可以开始使用了
 9. 执行实现的DisposableBean接口的destroy方法
 10. 执行**destroy-method( @PreDestroy**)
