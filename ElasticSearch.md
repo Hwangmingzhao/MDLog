@@ -10,7 +10,7 @@ ES -> 索引（不同的分区)-> 类型（同种数据的集合） -> 文档（
 
 
 
-倒排索引：
+### 倒排索引：
 
 一个属性的其中一个值叫做一个term，建立倒排索引的时候会将term相同的数据成员的序号保存到一个数组中（Posting List）, 而不同的Term之间也会有被排序，被构造成一个二叉排序树（Term Dictionary）, 而且为了效率更高更节省空间，这颗二叉树的每个节点并不会直接保存一个完整的term而是Term的前缀。
 
@@ -52,8 +52,7 @@ ES -> 索引（不同的分区)-> 类型（同种数据的集合） -> 文档（
   ```
   
 - GET 语法： 查询数据`GET /{_index}/{_type}/{_id}?pretty`
-  
-  
+
 
 
 使用ES javaAPI创建查询以及聚类：
@@ -87,7 +86,7 @@ API层：RESTful API
 
 
 
-#### ES集群：
+### ES集群：
 
 节点类型，master，data ,coordinate 一个节点可以是一个或者多个节点类型
 
@@ -99,261 +98,22 @@ API层：RESTful API
 
 - 分片：是一个最小级别工作单位，每个shard就是一个lucene索引，需要单独分配内存，我们与index通信，内部还是去查找shard。文档存储在分片中，然后分片分配到集群中的节点上。当集群扩容或缩小，ES将会自动在节点间迁移分片，以使集群保持平衡。
   - 当一个节点接收到一个请求，他会找到这个文档处于哪个分片，并转发请求到该分片所在的节点中，主分片完成操作后，将请求发送到复制分片所在的节点中，等待复制分片完成操作并成功返回信息给主分片后，才返回成功信息给用户。可以设置后面的这个过程为异步的，但这可能会导致过载
-
-
-
-映射（mapping）
-
-> 一句话说完：就是插入数据的时候将某个字段映射为某种类型，不同的类型在进行倒排索引以及查询搜索时的行为是不一样的
-
-查看某个索引的mapping http://192.168.20.114:9250/his_event_bqs/_mapping?pretty 
-
-定义了一个文档（即一条记录）及其所包含的字段（属性）如何被存储和索引的方法
-
-映射类型（mapping type）
-
-每个索引（一张表）都有一个或者多个映射类型来对文档进行逻辑分组（即将文档分为若干个type）
+  - 当删除一个文档时，首先会先通过hash计算出该文档的主分片在哪个节点，然后向这个分片发送一个delete请求，之后，这个主分片还会同时发送delete请求到该分片的副本，当其他副本也都删除了这个文档之后，用户才会接收到删除成功的返回
 
 
 
 
 
+### 数据类型
 
-
-
-
-直接看一段公司里的一个索引（表）的mapping
-
-```json
-dynamic_templates" : [   //说明这张表使用的是动态映射
-          {
-              //这张表中被判断属于为地图点这一数据类型的字段是"sys_geo_point"
-            "geo_point_fields" : {
-              "match" : "sys_geo_point",
-              "mapping" : {
-                "type" : "geo_point"
-              }
-            }
-          },
-          { //这张表中的"sys_date_time"字段被认为是日期，遵循一定的格式
-            "date_fields" : {
-              "match" : "sys_date_time",
-              "mapping" : {
-                "format" : "yyyy-MM-dd HH:mm:ss||epoch_millis",
-                "type" : "date"
-              }
-            }
-          },
-          {
-            "time_sort_fields" : {
-              "match" : "sys_sort_time",
-              "mapping" : {
-                "type" : "integer"
-              }
-            }
-          },
-          {//其余所有的字段都是string类型，都是可以作为索引的，是keyword(只能精确搜索搜索)
-            "string_fields" : {
-              "match" : "*",
-              "match_mapping_type" : "string",
-              "mapping" : {
-                "ignore_above" : 256,
-                "index" : "true",
-                "type" : "keyword"
-              }
-            }
-          }
-        ],
-```
-
-
-
-
-
-查看一个ES服务器的情况：curl ip:port/_cat/XXX?v
-
-
-
-**搭建集群**
-
-- 参考文档
-
-
-
-https://blog.csdn.net/jiao_fuyou/article/details/50509941
-
-
-
-#### 复杂API
-
-- 在查找某一个文档时，返回的JSON文件在_source字段中是文档，另外还有版本信息 、ID信息等
-
-```json
-{
-  "_index" :   "megacorp",
-  "_type" :    "employee",
-  "_id" :      "1",
-  "_version" : 1,
-  "found" :    true,
-  "_source" :  {
-      "first_name" :  "John",
-      "last_name" :   "Smith",
-      "age" :         25,
-      "about" :       "I love to go rock climbing",
-      "interests":  [ "sports", "music" ]
-  }
-}
-```
-
-- 在查找所有文档时GET /megacorp/employee/_search   ，参数不为ID而是 _search，响应内容的`hits`数组中包含了我们所有的三个文档。默认情况下搜索会返回前10个结果
-
-```json
-{
-   "took":      6,
-   "timed_out": false,
-   "_shards": { ... },
-   "hits": {
-      "total":      3,
-      "max_score":  1,
-      "hits": [
-         {
-            "_index":         "megacorp",
-            "_type":          "employee",
-            "_id":            "3",
-            "_score":         1,
-            "_source": {
-               "first_name":  "Douglas",
-               "last_name":   "Fir",
-               "age":         35,
-               "about":       "I like to build cabinets",
-               "interests": [ "forestry" ]
-            }
-         },
-         {
-            "_index":         "megacorp",
-            "_type":          "employee",
-            "_id":            "1",
-            "_score":         1,
-            "_source": {
-               "first_name":  "John",
-               "last_name":   "Smith",
-               "age":         25,
-               "about":       "I love to go rock climbing",
-               "interests": [ "sports", "music" ]
-            }
-         },
-         {
-            "_index":         "megacorp",
-            "_type":          "employee",
-            "_id":            "2",
-            "_score":         1,
-            "_source": {
-               "first_name":  "Jane",
-               "last_name":   "Smith",
-               "age":         32,
-               "about":       "I like to collect rock albums",
-               "interests": [ "music" ]
-            }
-         }
-      ]
-   }
-}
-```
-
-- 按照条件查询`GET /megacorp/employee/_search?q=last_name:Smith`，返回结果仍在_hits中
-
-- DSL语句查询：在JSON请求体中添加搜索条件
-
-  ```json
-  GET /megacorp/employee/_search
-  {
-      "query" : {
-          "match" : {
-              "last_name" : "Smith"
-          }
-      }
-  }
-  
-  GET /megacorp/employee/_search
-  {
-      "query" : {
-          //得以添加更多条件
-          "filtered" : {
-              "filter" : {
-                  "range" : {
-                      "age" : { "gt" : 30 } <1>
-                  }
-              },
-              "query" : {
-                  "match" : {
-                      "last_name" : "smith" <2>
-                  }
-              }
-          }
-      }
-  }
-  ```
-
-
-
-ES javaAPI传入查询条件过程
-
-```json
- {
-  "size" : 0,
-  "query" : {
-    "bool" : {
-      "filter" : [
-        {
-          "range" : {
-            "sys_date_time" : {
-              "from" : 1568304000000,
-              "to" : 1568908799999,
-              "include_lower" : true,
-              "include_upper" : true,
-              "boost" : 1.0
-            }
-          }
-        },
-        {
-          "term" : {
-            "appId" : {
-              "value" : "credit",
-              "boost" : 1.0
-            }
-          }
-        }
-      ],
-      "must_not" : [
-        {
-          "exists" : {
-            "field" : "deviceId",
-            "boost" : 1.0
-          }
-        }
-      ],
-      "adjust_pure_negative" : true,
-      "boost" : 1.0
-    }
-  },
-  "aggregations" : {
-    "SYS_group_field" : {
-      "date_histogram" : {
-        "field" : "sys_date_time",
-        "format" : "yyyy-MM-dd",
-        "time_zone" : "Asia/Shanghai",
-        "interval" : "1d",
-        "offset" : 0,
-        "order" : {
-          "_key" : "asc"
-        },
-        "keyed" : false,
-        "min_doc_count" : 0
-      }
-    }
-  }
-}}
-```
+- text: 如果一个字段需要被全文搜索，比如说我要找这个文章里有没有这个单词，那么这个文章的内容就应该被定义为text，当这个text被生成倒排索引之前会通过分析器分解成一个个词元（tokens），text类型的字段不用于排序，很少用于聚合
+- keyword: 适用于结构化的字段，比如email、地址、标签、状态，只能同各国精确值搜索到
+- 整数类型：byte、short、integer、long
+- 浮点
+- date
+- boolean
+- 二进制
+- array
 
 
 
@@ -361,5 +121,4 @@ ES javaAPI传入查询条件过程
 
 
 
-
-
+## Java API

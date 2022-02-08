@@ -1,23 +1,40 @@
-#### Bean的生命周期（简单的）：
+### Bean的生命周期（简单的）：
 
-1. 实例化
+1. 实例化（在此之前还有一些类加载过程以及构造方法推断的步骤）
+
+   1. 实例化前动作我们可以通过向容器中注册一些**InstantiationAwareBeanPostProcessor**的实现类去实现，这个**InstantiationAwareBeanPostProcessor**实现了BeanPostProcessor接口（下面继续说），比如我想要每个bean在实例化前都打印一下BeanName，顺序可以通过配置文件定义顺序确定。
+
+      > 如果你在实现类重写方法中，在实例化前返回了一个对象，那么实例化就不会进行，因为你已经给出了一个对象
+
 2. 依赖注入
+
 3. 调用实现的BeanNameAware接口的SetBeanName接口，传入id属性作为参数
+
 4. 调用实现的BeanFactoryAware接口的setBeanFactory接口
-5. ~~ ApplicationContextAwear  ~~ set~~
-6. 初始化预处理，执行这个方法postProcessBeforeInitialization，在Bean初始化完成之前进行
-7. 执行**init-method，执行完标志着初始化完成( @PostConstruct)**
+
+5. 调用实现的ApplicationContextAwear  接口的setApplicationContext接口 去设置对应的ApplicationContext
+
+6. 初始化预处理，执行这个方法postProcessBeforeInitialization() （这个是BeanPostProcessor接口中的一个方法），在Bean初始化完成之前进行
+
+7. 执行初始化方法，执行完标志着初始化完成，有三种方式
+
+   1. @Bean(initMethod = "func")
+   2. 实现这个Bean的类本身实现**InitializingBean**接口，具体实现重写afterPropertiesSet方法
+   3. @PostConstruct
+
 8. 执行postProcessAfterInitialization，初始化完成后执行，然后这个Bean就可以开始使用了
+
 9. 执行实现的DisposableBean接口的destroy方法
+
 10. 执行**destroy-method( @PreDestroy**)
 
 
 
-#### Bean几种作用域：
+### Bean几种作用域：
 
-singleton:在容器中只有一个实例
+singleton:在容器中只有一个实例，但是不是容器中只有一个这种类型的Bean 如果在xml中定义的bean默认就是singleton的，意味着**这个Bean**在容器中只有一个实例。用一个id找到的都是这个bean
 
-prototype:多个实例
+prototype:多个实例，用同一个id找到的不是同样的实例
 
 request:一个请求一个bean
 
@@ -83,7 +100,7 @@ session:
 
 
 
-#### BeanFactory与ApplicationContext的区别
+### BeanFactory与ApplicationContext的区别
 
 beanfactory是一个最底层的接口，只有实例化对象和拿对象的功能。
 
@@ -162,19 +179,19 @@ Spring不直接实现事务，而是提供了一个接口`PlatformTransactionMan
 
 如果你在spring中使用了@Transactional 标注其为事务方法，那么在执行方法的时候，就会为你这个调用过程先定义一个连接，然后调用方法之后再commit一下，如果中间出错了就在catch块中rollback。
 
-​		**PROPAGATION_REQUIRED**：就是说对于这个这个方法，你单独使用他的话，会为你生成一个事务，但如果你被**另一个事务方法**调用，在上一级方法中已经生成了一个事务的话，那么你可以共享这个事务。
-
-​		**PROPAGATION_SUPPORTS**：对于这个方法，如果**上级有事务，那么他就是事务执行**，就跟上面的REQUIRED一样，但是如果**单独调用他**又或者**上级没有事务**，那么**他自己也就没有事务**。
-
-​		**PROPAGATION_MANDATORY**：表示该方法必须在事务中运行，如果当前事务不存在，则会抛出一个异常，没什么好说的，意思是，他的上级必须要有一个事务，而他自己又不会生成事务。
-
-​		**PROPAGATION_REQUIRED_NEW**：没有的话自己生成，**上级有的话他还是自己生成**，而且这个新的事务只为他一个方法服务，在使用他自己生产出来的事务前，他**先把前面的事务挂起一下**（这时候需要用到事务管理器去帮帮忙挂起），执行完之后，再恢复原来的事务。**注意一下**：这样的话，两个事务间互不影响，也就是说，原来的事务执行成功还是失败都不会影响自己的结果，而自己的方法失败了也不会影响前面的事务执行。
-
-​		**PROPAGATION_NOT_SUPPORTED**: 不需要事务，如果原来就有事务的话我就挂起，挂起之后继续执行自己的方法，自己执行失败了也不会回滚，也不会影响原来事务的回滚。
-
-​		**PROPAGATION_NEVER**: 永远不要事务，上级要是有事务我就闹，我不执行我还要抛异常。
-
-​		**PROPAGATION_NESTED**：嵌套事务，如果上级没有事务，那就自己生产一个给自己用。如果上级有，那自己也生产一个。**这里重要的是**：嵌套事务，内层事务依赖于外层事务，外层要是失败了，内层也会失败，但是内层失败与否不会影响外层。对于外层事务，事务管理器不像**PROPAGATION_REQUIRED_NEW**一样给外层挂起，而是设置savepoint
+		**PROPAGATION_REQUIRED**：就是说对于这个这个方法，你单独使用他的话，会为你生成一个事务，但如果你被**另一个事务方法**调用，在上一级方法中已经生成了一个事务的话，那么你可以共享这个事务。
+	
+		**PROPAGATION_SUPPORTS**：对于这个方法，如果**上级有事务，那么他就是事务执行**，就跟上面的REQUIRED一样，但是如果**单独调用他**又或者**上级没有事务**，那么**他自己也就没有事务**。
+	
+		**PROPAGATION_MANDATORY**：表示该方法必须在事务中运行，如果当前事务不存在，则会抛出一个异常，没什么好说的，意思是，他的上级必须要有一个事务，而他自己又不会生成事务。
+	
+		**PROPAGATION_REQUIRED_NEW**：没有的话自己生成，**上级有的话他还是自己生成**，而且这个新的事务只为他一个方法服务，在使用他自己生产出来的事务前，他**先把前面的事务挂起一下**（这时候需要用到事务管理器去帮帮忙挂起），执行完之后，再恢复原来的事务。**注意一下**：这样的话，两个事务间互不影响，也就是说，原来的事务执行成功还是失败都不会影响自己的结果，而自己的方法失败了也不会影响前面的事务执行。
+	
+		**PROPAGATION_NOT_SUPPORTED**: 不需要事务，如果原来就有事务的话我就挂起，挂起之后继续执行自己的方法，自己执行失败了也不会回滚，也不会影响原来事务的回滚。
+	
+		**PROPAGATION_NEVER**: 永远不要事务，上级要是有事务我就闹，我不执行我还要抛异常。
+	
+		**PROPAGATION_NESTED**：嵌套事务，如果上级没有事务，那就自己生产一个给自己用。如果上级有，那自己也生产一个。**这里重要的是**：嵌套事务，内层事务依赖于外层事务，外层要是失败了，内层也会失败，但是内层失败与否不会影响外层。对于外层事务，事务管理器不像**PROPAGATION_REQUIRED_NEW**一样给外层挂起，而是设置savepoint
 
 
 
@@ -204,16 +221,16 @@ Spring不直接实现事务，而是提供了一个接口`PlatformTransactionMan
 
 
 
-## 3.1 编程式和声明式事务的区别
+### 3.1 编程式和声明式事务的区别
 
 Spring提供了对编程式事务和声明式事务的支持，**编程式事务允许用户在代码中精确定义事务的边界，而声明式事务（基于AOP）有助于用户将操作与事务规则进行解耦。** 
 简单地说，编程式事务侵入到了业务代码里面，但是提供了更加详细的事务管理；而声明式事务由于基于AOP，所以既能起到事务管理的作用，又可以不影响业务代码的具体实现。
 
-## 3.2 如何实现编程式事务？
+### 3.2 如何实现编程式事务？
 
 Spring提供两种方式的编程式事务管理，分别是：使用TransactionTemplate和直接使用PlatformTransactionManager。
 
-### 3.2.1 使用TransactionTemplate
+#### 3.2.1 使用TransactionTemplate
 
 采用TransactionTemplate和采用其他Spring模板，如JdbcTempalte和HibernateTemplate是一样的方法。它使用回调方法，把应用程序从处理取得和释放资源中解脱出来。如同其他模板，TransactionTemplate是线程安全的。代码片段：
 
@@ -231,7 +248,7 @@ Spring提供两种方式的编程式事务管理，分别是：使用Transaction
 
 使用TransactionCallback()可以返回一个值。如果使用TransactionCallbackWithoutResult则没有返回值。
 
-### 3.2.2 使用PlatformTransactionManager
+#### 3.2.2 使用PlatformTransactionManager
 
 示例代码如下：
 
@@ -253,9 +270,9 @@ Spring提供两种方式的编程式事务管理，分别是：使用Transaction
 
 
 
-## 4 声明式事务
+### 4 声明式事务
 
-### 4.1 配置方式
+#### 4.1 配置方式
 
 注：以下配置代码参考自[Spring事务配置的五种方式](http://www.blogjava.net/robbie/archive/2009/04/05/264003.html)
 
@@ -517,14 +534,6 @@ public class UserDaoImpl extends HibernateDaoSupport implements UserDao {
 
 
 
-**RequestParam**  汉语意思就是： **请求参数**。顾名思义 就是获取参数的  **?name=1**
-
-**PathVariable**  汉语意思是：**路径变量**。顾名思义，就是要获取一个url 地址中的一部分值，那一部分呢？**/emp/1**
-
-
-
-
-
 ### 事务&AOP&代理
 
 先大致说一下理解：
@@ -546,44 +555,6 @@ public class UserDaoImpl extends HibernateDaoSupport implements UserDao {
 代理模式的关键点是:代理对象与目标对象.**代理对象是对目标对象的扩展**,并会调用目标对象。
 
 
-
-
-
-### SSM整合流程
-
-1. web.xml 配置启动容器配置文件信息，配置DispatcherServlet ,一个就够，将页面请求交给他处理，配置Listener、Filter.
-2. DispatcherServlet-servlet.xml  配置基于注解的映射，视图解析器，还有一些配置信息。
-3. applicationContext.xml  Spring主配置，配置数据源，配置Mybatis会话工厂（指定Mapper文件位置），配置事务管理器，开启基于注解的事务管理，配置对不同方法的事务属性。
-4. Mybatis配置文件的编写，主要是设置全局Mybatis属性，DAO接口及Mapper实现可以交给逆向工程完成，然后在此基础上再做修改。
-
-
-
-以下是SSM整合过程中的一些新知识
-
-- 关于Mybatis插件，可以实现分页功能。开始一个分页之后的查询自动会变为分页查询，而查询出来的结果可以再次被封装起来，里面就有很多分页信息。比如当前在第几页，一共有多少条记录。
-
-
-
-- 改造为ajax，通过使用json数据，可以提高可扩展性。
-
-  ![1567314845312](C:\Users\H\AppData\Roaming\Typora\typora-user-images\1567314845312.png)
-
-  - 我们可以将很多自定义的信息封装到一个自定义类中，比如成功失败消息，状态码等等，为了能在这个类中放入多个对象，我们可以在里面放一个Map用来保存对象。这里有一个小小的编程技巧：实现**链式编程**
-
-  - ```java
-    public Msg int(String key,Object value){
-        this.getMap().put(key,value);
-        return this;
-    }
-    //使用
-    Msg msg = new Msg(code,massage).add(key1,value1).add(key2,value2);
-    
-    ```
-
-  - 然后怎么去利用ajax呢，ajax是一个异步加载请求，像一般的话，我们的页面在显示到我们的屏幕之前就已经把数据和jsp完全结合好了，再来显示。那么使用Ajax的话，我们就可以先把框架先加载完（没有任何数据），然后通过jquery发送ajax请求数据，再将数据跟我们的页面做整合，在成功的回调函数中整合数据和模板。
-
-- 数据校验应该遵循 前端jquery格式校验->ajax用户名重复校验->后端校验(重要！！保证数据的正确性不被别人篡改)
-  
 
 
 
@@ -623,7 +594,7 @@ public class UserDaoImpl extends HibernateDaoSupport implements UserDao {
 
 11. @Qualifier 增强Autowired ，使其按名称注入
 
-12.  **@Service，@Controller 这些注解要放在接口的实现类上，而不是接口上面** 
+12. **@Service，@Controller 这些注解要放在接口的实现类上，而不是接口上面** 
 
 13. @Autowired和@Resource是用来修饰字段，构造函数，或者设置方法，并做注入的。 
 
@@ -633,6 +604,8 @@ public class UserDaoImpl extends HibernateDaoSupport implements UserDao {
 
 16. @PathVariable:用于获取路径参数就是RequestMapping中指定的参数映射，而不是地址栏中的？
 
+17. @Value: 可以使用 @Value("huangmingzhao") ，也可以使用 @Value("${huangmingzhao}") ，后者会优先从配置文件中读取值进行填充，找不到就会填充${huangmingzhao}， 如果使用@Value("#{huangmingzhao}")，则是去找beanName相同的Bean
+
 
 
 
@@ -640,11 +613,9 @@ public class UserDaoImpl extends HibernateDaoSupport implements UserDao {
 
 ### 如何自定义一个注解
 
-- **第一步，定义注解——相当于定义标记；**
-- **第二步，配置注解——把标记打在需要用到的程序代码中；**
-- **第三步，解析注解——在编译期或运行时检测到标记，并进行特殊操作**
-
-
+- 第一步，**定义注解**——相当于定义标记；
+- 第二步，**配置注解**——把标记打在需要用到的程序代码中；
+- 第三步，**解析注解**——在编译期或运行时检测到标记，并进行特殊操作
 
 首先是**定义注解：**
 
@@ -732,7 +703,7 @@ public @interface CherryAnnotation {
 
    @Inherited注解，是指定某个自定义注解如果写在了父类的声明部分，那么子类的声明部分也能自动拥有该注解。@Inherited注解只对那些@Target被定义为ElementType.TYPE的自定义注解起作用，也就是说肯定只有能标注到类上面的才能用。
 
-   
+
 
 然后第二步，**配置注解**
 
@@ -793,14 +764,13 @@ public @interface CherryAnnotation {
    ```
 
    - 如果我们要获得的注解是配置在方法上的，那么我们要从Method对象上获取；如果是配置在属性上，就需要从该属性对应的Field对象上去获取，如果是配置在类型上，需要从Class对象上去获取。总之在谁身上，就从谁身上去获取！
-   
+
    - isAnnotationPresent(Class<? extends Annotation> annotationClass)方法是专门判断该元素上是否配置有某个指定的注解；
-   
+
    - getAnnotation(Class<A> annotationClass)方法是获取该元素上**指定的**注解。之后再调用该注解的注解类型元素方法就可以获得**配置时的值数据**；
-   
+
    - 反射对象上还有一个方法getAnnotations()，该方法可以获得该对象身上配置的所有的注解。它会返回给我们一个注解数组，需要注意的是该**数组的类型是Annotation类型**，这个Annotation是一个来自于java.lang.annotation包的接口。
-   
-     
+
 
 #### 如何使自定义注解实现某些特定的功能
 
@@ -817,7 +787,7 @@ public @interface CherryAnnotation {
 
 
 
-#### IOC容器的初始化（比较重要再看一遍）
+### IOC容器的初始化（比较重要再看一遍）
 
 首先我们要知道，有很多种IOC容器，所谓初始化，就是实例化一个ApplicationContext，不同的容器的初始化方式也不尽相同。
 
@@ -840,7 +810,7 @@ public @interface CherryAnnotation {
 
 
 
-## AOP
+### AOP
 
 主要应用场景有：
 
@@ -911,6 +881,228 @@ cglib：运行期动态生成新 的 class，相当于创建一个新的class去
 答：spring boot来简化spring应用开发，约定大于配置 
 
   
+
+### BeanDefinition
+
+用来定义一个bean，我们使用@Component注解或者@Bean注解，又或者是<bean>标签，都会被转换为一个BeanDefinition，其中包含如下属性：
+
+- beanClass
+- scope
+- isLazy：这个属性对于作用域是propertype的bean不起作用
+- dependsOn
+- primary：如果按照类型去找到了多个同类型的bean，那么会注入标志位主bean的bean
+- initMethodName
+
+
+
+### FactoryBean是什么
+
+FactoryBean是实现了FactoryBean接口的一种类，行为可以理解为是一个用来生成其他Bean的Bean，在跟其他类型的Bean的行为中有点不一样的，如果你通过getBean方法去获取这个实现类的Bean的话，他不会理所当然地返回这个实现类，而是返回getObject() 中返回的对象。  
+
+```java
+public class MingzhaoFactoryBean implements FactoryBean {
+    @Override
+    public Object getObject() throws Exception {
+        return ActualObject;
+    }
+}
+
+
+beanDefinition.setBeanClass(MingzhaoFactoryBean.class) // 实际上有两个Bean对象，如果要通过beanName分别获取这两个bean，需要通过&name/name两个不同的beanName
+applicationContext.getBean("name", ActualObject.class)
+applicationContext.getBean("&name", MingzhaoFactoryBean.class)
+```
+
+FactoryBean在mybatis整合SSM中有重要作用。因为一个Mapper是一个接口，一个接口没办法直接被实例化。因此通过FactoryBean返回一个mapper的代理对象. 在这里我们看下源码，通过向容器内注册一个SqlSessionFactoryBean对象，并填充其中数据源和xml路径属性
+
+```xml
+<bean id="sqlSessionFactoryBean" class="org.mybatis.spring.SqlSessionFactoryBean">
+    <property name="dataSource" ref="dataSource"/>
+    <property name="configLocation" value="classpath:mybatis/mybatis-config.xml"/>
+    <property name="mapperLocations" value="classpath:mybatis/zenith/*.xml"/>
+</bean>
+```
+
+1. 首先我们要先往容器注册BeanDefinition，这里注册的就是多个相同FactoryBean，通过这个FactoryBean可以，传入不同的mapper类型就可以获得不同Mapper接口的代理对象。
+2. 然后问题来了，要获取不同Mapper接口的代理对象，如果我们希望不用每次都指定xxxMapper.class，那就要扫描，但是扫描的话默认只能扫描类而不能扫描接口，此时我们就需要自定义扫描逻辑，即只扫描接口，这也是mybatis-spring所做的。自定义一个BeanDefinitionScanner并重写isCandidateComponent方法。
+3. 但是上面还会有一个问题：类型是接口的BeanDefinition 不能被注册到Spring容器中，因此在注册到Spring容器之前我们需要修改类型，重写BeanDefinitionScanner中的doScan方法修改类型并注册BeanDefinition到Spring容器中就行了。
+4. 然后修改FactoryBean的getObject方法，改为sqlSession.getMapper(mapperClass) ，那么就可以获取mybatis生成的mapper接口的代理对象，较为不一样的是
+
+整合过程可以看下这个博客，对我来说mybatis整合spring的两个核心问题是：**如何扫描接口并将其注册为Bean**（看下上面的1、2、3），另外一个就是如何将mapper接口与xml实现关联起来，也就是生成一个mapper接口的代理对象（这一个其实跟Spring框架无关，只要第一个问题搞定了，那么通过sqlSession.getMapper方法就能获取代理对象）
+
+> https://blog.csdn.net/lihuayong/article/details/83934744
+
+上面的四点只是一个简单的过程，看完这个博客之后就会知道，在mybatis-spring中，就是通过MapperFactoryBean 去代理mapper接口的。
+
+
+
+### 单例池是什么
+
+单例池是用来存放单例Bean的一个ConcurrentHashMap对象，用来保证单例的Bean不会重复被实例化。
+
+
+
+### ApplicationContext可以怎样区分
+
+1. 可以分为通过注解方式以及通过配置xml方式的
+2.  是否支持刷新，区别在于是否继承了AbstractRefreshableConfigApplicationContext，实际的效果是在配置修改了之后，容器会刷新。（一般对于xml文件或者web容器）
+
+
+
+### 说一下BeanPostProcessor这个接口
+
+这个接口本身很简单，只有两个方法，postProcessBeforeInitialization（初始化前动作） 和postProcessAfterInitialization（初始化后动作），如果说你只实现这个接口，那么你能够控制Bean生命周期中初始化前后的动作。
+
+在Spring中，有很多接口继承了这个接口，添加了很多对于Bean生命周期前后的操作（不知道怎么表达，能懂就行）。比如说InstantiationAwareBeanPostProcessor，能够控制**Bean实例化**前后的动作。
+
+```java
+public interface InstantiationAwareBeanPostProcessor extends BeanPostProcessor {
+    @Nullable
+    default Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) throws BeansException {
+        return null;
+    }
+
+    default boolean postProcessAfterInstantiation(Object bean, String beanName) throws BeansException {
+        return true;
+    }
+}
+```
+
+其实Spring中一些很牛掰的功能也是利用了这个接口的实现类去做的，通过这个接口你能把很多逻辑像书签一样塞进Bean的生命周期中。
+
+
+
+### 如何打破Spring中的循环依赖
+
+不同的实例（未填充属性）存放到二级缓存中，在后面出现依赖的时候，就去二级缓存中寻找需要的实例，然后继续走下去。当一个实例A需要一个实例B作为属性的话，首先去单例池找（已经填充完属性并完成初始化的实例），找不到的话就会去缓存中寻找（未填充属性的对象）
+
+为什么在Spring中要有三级缓存：服务于AOP，因为最终需要放到单例池中的Bean是A的代理对象而不是A自身，因此需要把A的代理对象放到二级缓存中，所以对于需要进行AOP并且有循环依赖的Bean ，需要把AOP过程提前，三级缓存就是用来做这个判断的。
+
+
+
+### Spring-AOP底层实现原理
+
+这里是Spring-AOP结合aspectj注解的一个比较详细的使用教程
+
+> https://www.cnblogs.com/joy99/p/10941543.html
+
+这里有一种比较特别的织入增加逻辑的方式：类加载时织入 Load Time Weaving
+
+就是在字节码数据放到ClassLoader之前，通过注册转换器（ClassFileTransFormer）对字节码做转换，转换后的字节码再放到ClassLoader中。
+
+SpringAOP 和 AspectJ的区别
+
+- **AspectJ**基于上述的编译时织入/**类加载时织入**实现AOP。 AspectJ提供了一套切面定义的语法以及专门的编译器ajc。
+- Spring AOP基于的**动态代理**实现AOP。根据目标类是否实现了接口来决定是选择JDK动态代理还是CGLib代理，当然也有参数可以指定是否强制使用CGLib代理。
+- Spring允许使用AspectJ的一套标准注解来定义切面、切入点和通知等AOP组件
+
+SpringAOP只能支持方法的执行作为连接点，AspectJ的范围则宽泛很多，因为他都可以直接改你的字节码了。
+
+| 切入点指示符 | 类型           | 入参                     | 说明                                                         |
+| ------------ | -------------- | ------------------------ | ------------------------------------------------------------ |
+| execution    | 方法切入点     | 用来匹配方法的pattern    | 匹配目标类的目标方法                                         |
+| @annotation  | 方法切入点     | 方法注解                 | 标注了某个注解的**方法**                                     |
+| args         | 方法入参切入点 | 类名                     | `args(com.test.Input)`表示所有有且仅有一个按类型匹配于Input的入参的方法 |
+| @args        | 方法入参切入点 | 类型注解                 | 用来匹配目标类方法入参是否由指定注解标注                     |
+| within       | 目标类切入点   | 包名或者包名+类名pattern | 符合要求的类的所有方法都会增强                               |
+| target       | 目标类切入点   | 类名                     | 指定类以及指定类的子类的所有方法都会增强                     |
+| @within      | 目标类切入点   | 类型注解                 | 用来匹配目标类是否由指定注解标注                             |
+| @target      | 目标类切入点   | 类型注解                 | 用来匹配目标类是否由指定注解标注，子类也会增强               |
+| this         | 代理类切点     | 类名                     | 表示在这个类名中调用到这个目标方法就会增强，在别的地方调用这个方法不会增强 |
+
+一些常用的定义切点的表达式：
+
+- `execution(public * *(..))`表示匹配所有类的public方法
+- `execution(* *TO(..))` 表示匹配所有类的所有以TO结尾的方法
+- `execution(* com.ankeetc.Waiter.*(..))` 匹配Waiter接口下所有方法
+- `execution(* com.ankeetc.Waiter+.*(..))` 匹配Waiter接口及其所有实现类的方法，它不但匹配在Waiter接口定义的方法，同时还匹配不在Waiter接口中定义的方法。
+- `execution(* com.ankeetc.*(..))`：匹配com.ankeetc包下所有类的所有方法
+- `execution(* com.ankeetc..*(..))`：匹 配com.ankeetc包、子孙包下所有类的所有方法。`..`出现在类名中时，后面必须跟`*`，表示包、子孙包下的所有类；
+- `execution(* com..*.*Dao.find*(..))`：匹配包名前缀为com的任何包下类名后缀为Dao的方法，方法名必须以find为前缀
+- `execution(* method(String,int)))`：匹配method(String,int)方法，且method()方法的第一个入参是String，第二个入参是int。**如果方法中的入参类型是java.lang包下的类，可以直接使用类名**，否则必须使用全限定类名，如method(java.util.List,int)
+- `execution(* method(String,..)))`：匹配目标类中的method()方法，该方法第 一个入参为String，后面可以有任意个入参且入参类型不限
+
+**SpringAOP动态代理实现原理**
+
+AnnotationAwareAspectJAutoProxyCreator是一个BeanPostProcessor接口的实现类，逻辑在中间的AbstractAdvisingBeanPostProcessor中
+
+- 先扫描@Around这些注解，找到所有的增强逻辑，把他们变成一个个Advisor
+- 确定这些Advisor的执行顺序
+- 然后将这些**Advisor**和表达式中指定的**被增强方法**匹配起来（SpringAOP只能针对方法去做增强）
+  - 匹配上了之后，就会创建被代理对象的代理对象`proxyFactory.getProxy(classLoader)`；
+  - 这里会有两种AopProxy的实现类： CglibAopProxy JdkDynamicAopProxy
+  - JdkDynamicAopProxy=>Proxy.newProxyInstance就可以得到一个代理对象了
+  - CglibAopProxy这里就会复杂一点
+
+**CglibAopProxy JdkDynamicAopProxy**  是如何选择的-》DefaultAopProxyFactory#createAopProxy
+
+
+
+#### xml中bean的constructor-arg 是什么
+
+答：表示这个bean的构造函数参数
+
+```xml
+<bean id="sqlSessionTemplateBatch" class="org.mybatis.spring.SqlSessionTemplate">
+        <constructor-arg index="0" ref="sqlSessionFactoryBean"/>
+        <constructor-arg index="1" value="BATCH"/>
+    </bean>
+```
+
+也可以这样用：
+
+```xml
+<bean id="sqlSessionTemplateBatch" class="org.mybatis.spring.SqlSessionTemplate">
+        <constructor-arg name="sqlSessionFactory" ref="sqlSessionFactoryBean"/>
+        <constructor-arg name="executorType" value="BATCH"/>
+    </bean>
+```
+
+还可以用type，即指定类型
+
+
+
+#### Spring如何选择正确的构造方法去实例化对象呢（反射调用初始化方法）
+
+答：https://blog.csdn.net/buhuiguowang/article/details/111986468
+
+如果有多个有参构造方法，则：
+
+1. 如果指定了某个构造方法，那就使用这个构造方法
+   1. constructor-arg，
+   2. @Autowired 会使用byType+byName的方式去寻找合适的值去作为构造方法参数，只能用一个，如果
+2. 如果没有指定某一个，用了多次@Autowired，可以设置required=false去让Spring去选择其中最合适的（反正有一大堆判断条件）。
+3. 如果没有让Spring自动去选择，则直接调用无参构造方法，没有的话就会报错 
+
+
+
+#### 如何在xml中通过配置文件的变量获取值
+
+答：配合< util:properties > 标签，指定配置文件，然后再读取
+
+```xml
+   <util:properties id="config" location="classpath:testdb.properties"/>
+    <bean id="dataSource" class="org.apache.commons.dbcp2.BasicDataSource">
+        <property name="driverClassName" value="#{config.driver}"/>
+        <property name="url" value="#{config.url}"/>
+        <property name="username" value="#{config.username}"/>
+        <property name="password" value="#{config.password}"/>
+    </bean>
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
